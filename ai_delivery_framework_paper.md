@@ -56,7 +56,7 @@ The new framework is built around three phases, designed to compress a typical t
 The PM sits directly with the business owner — not a business analyst, not a proxy — and has a structured conversation to capture:
 - The core problem to be solved
 - Business goals and success metrics
-- The definition of what \"first value\" looks like
+- The definition of what "first value" looks like
 
 From that conversation, the PM begins building immediately. There are no user stories written. There are no wireframes handed off to a designer. The PM uses AI to generate, iterate, and refine a working application in real time.
 
@@ -127,7 +127,7 @@ An automated agent continuously scans active sandboxes and flags similar ideas, 
 The framework does not eliminate governance — it modernizes it.
 
 | Role | Traditional | New Model |
-|------|-------------|-----------|
+|------|-------------|----------|
 | Product Owner | Backlog manager, story writer | Decision authority, daily reviewer, sign-off owner |
 | Business Analyst | Requirements gatherer | Eliminated — replaced by direct stakeholder conversation |
 | Architect | Multi-week review | 1–2 day AI-accelerated technical gate |

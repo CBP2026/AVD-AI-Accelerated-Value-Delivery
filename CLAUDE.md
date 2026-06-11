@@ -117,6 +117,60 @@
 
 ---
 
+## What's in the Paper (v3.1 section map)
+
+1. The Delivery Cycle Today (positive reframe)
+2. The AI Inflection
+3. Stack-Agnostic by Design (OS conversion paths)
+4. Framework Overview
+5. Phase 1 — Inception & Accelerated Build
+6. Phase 2 — Technical Gate & Hardening
+7. Handoff to Run
+8. Phase 3 — Continuous Evolution via Stakeholder Sandboxing
+9. The Living Backlog
+10. Governance Model
+11. First-Project Prerequisites
+12. Training and Certification
+13. Security Model (6 layers)
+14. Outcomes the Framework Targets
+15. A Note on Commercial Contracting (outcome-based — mentioned, not delved)
+- Annex A — Comparison with Existing Frameworks (Agile/SAFe, BMAD, Shape Up)
+- Annex B — Glossary of Roles and Artefacts
+
+**Closing folded into Abstract** as third paragraph (hook at the start instead of payoff at the end).
+
+---
+
+## What's Archived for Later Iteration
+
+- **Failure Modes** (was Section 11 in v3): Phase 2 blocker handling, PO rejection, sandbox vote failure, synthetic data miss, PM unavailability. Removed at user direction — may return when boss-level scrutiny demands it.
+- **Empirical Basis & Pilot Path** (was Section 16 in v3): honest framing of CP's 5–7 apps as feasibility proof, not enterprise validation. Removed — bring back when proposing the actual pilot.
+- **Synthetic data implementation detail**: kept to a single sentence in v3.1. Multi-month engineering reality deferred.
+
+---
+
+## Decisions Made During v2→v3→v3.1 Refinement
+
+| Topic | Decision |
+|-------|----------|
+| Headline timeline | Removed all day counts. Qualitative only. |
+| Defect rate | "Low and continuously validated" — not "near-zero". |
+| CAB | Replaced with Deployment Authority Envelope (asynchronous standing review for out-of-envelope changes). |
+| Architect bottleneck | Review by exception against pattern library. |
+| Pattern library cold-start | Honestly named: empty on project 1, seeded by it. |
+| PM scope | Build only. Hands off at deployment. Not a run owner. |
+| AVD Coach successor | Central enablement function, not PO. |
+| User stories replacement | Vision Brief (outcomes) + commit summaries (per-feature acceptance) + AI-regenerated tech docs. |
+| Synthetic data | Prerequisite, detail deferred. |
+| Failure modes | Archived for later. |
+| Empirical claim | Archived for later (return when proposing pilot). |
+| Contracting | Brief mention (outcome-based, already being explored at OS). |
+| Closing | Folded into Abstract as hook. |
+| OS positioning | Credit OS as accelerator. AVD turbinates on top, not against. |
+| Stack agnosticism | Confirmed. OS is one target via R&D tooling or direct generation. |
+
+---
+
 ## Open Items for Future Iterations
 
 - Refresh `avd_workflow.html` and `avd_presentation.pptx` to v3.1

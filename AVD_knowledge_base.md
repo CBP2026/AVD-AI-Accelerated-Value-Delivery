@@ -132,7 +132,7 @@ A IA invalida as suposições que tornaram o Agile necessário. Um PM com ferram
 ## Gaps Identificados e Resolvidos
 
 | Gap | Solução |
-|-----|---------|
+|-----|----------|
 | Scope creep | Visão + objectivos + métricas visíveis; IA alerta quando features não contribuem para os goals |
 | Accountability de requisitos | PO embebido, revê diariamente, sign-off formal por feature |
 | Conflitos entre stakeholders | IA gera análise de impacto; PO decide com transparência |
