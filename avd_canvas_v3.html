@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AVD Paper V3 — Annotation Canvas</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f4f4f0;
+    color: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    background: #1a1a1a;
+    color: #fff;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  #topbar h1 { font-size: 14px; font-weight: 600; letter-spacing: 0.04em; opacity: 0.9; }
+  #topbar .subtitle { font-size: 12px; opacity: 0.5; margin-top: 2px; }
+  #topbar .actions { display: flex; gap: 10px; align-items: center; }
+
+  .btn {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .btn:hover { opacity: 0.85; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn-export {
+    background: #2563eb;
+    color: #fff;
+  }
+  .btn-clear {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    font-size: 12px;
+  }
+  .annotation-count {
+    font-size: 12px;
+    opacity: 0.6;
+    background: rgba(255,255,255,0.1);
+    padding: 4px 10px;
+    border-radius: 12px;
+  }
+
+  /* ── LAYOUT ── */
+  #layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── DOCUMENT PANEL ── */
+  #doc-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 48px 64px;
+    background: #fff;
+    user-select: text;
+    position: relative;
+  }
+  #doc-panel::-webkit-scrollbar { width: 6px; }
+  #doc-panel::-webkit-scrollbar-thumb { background: #d1d1d1; border-radius: 3px; }
+
+  .doc-content {
+    max-width: 720px;
+    margin: 0 auto;
+    line-height: 1.75;
+  }
+
+  .doc-title {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+    color: #0f0f0f;
+  }
+  .doc-subtitle {
+    font-size: 18px;
+    font-weight: 400;
+    color: #444;
+    margin-bottom: 6px;
+  }
+  .doc-meta {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 40px;
+    padding-bottom: 32px;
+    border-bottom: 2px solid #f0f0f0;
+  }
+
+  h2.section-heading {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 40px 0 14px;
+    color: #0f0f0f;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  h3.sub-heading {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 28px 0 10px;
+    color: #222;
+  }
+  h4.sub-sub-heading {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 20px 0 8px;
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  p { margin-bottom: 14px; font-size: 15px; color: #2a2a2a; }
+
+  ul.doc-list { margin: 0 0 14px 20px; }
+  ul.doc-list li { margin-bottom: 6px; font-size: 15px; color: #2a2a2a; }
+
+  /* Tables */
+  .doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 14px;
+  }
+  .doc-table th {
+    background: #f5f5f5;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 12px;
+    border: 1px solid #e5e5e5;
+    color: #222;
+  }
+  .doc-table td {
+    padding: 9px 12px;
+    border: 1px solid #e5e5e5;
+    vertical-align: top;
+    color: #333;
+  }
+  .doc-table tr:hover td { background: #fafafa; }
+
+  /* Highlights */
+  mark.hl-comment {
+    background: rgba(255, 214, 0, 0.35);
+    border-bottom: 2px solid #f5a623;
+    border-radius: 2px;
+    cursor: pointer;
+    padding: 1px 0;
+  }
+  mark.hl-revision {
+    background: rgba(239, 68, 68, 0.15);
+    border-bottom: 2px solid #ef4444;
+    border-radius: 2px;
+    cursor: pointer;
+    padding: 1px 0;
+  }
+  mark.hl-question {
+    background: rgba(59, 130, 246, 0.15);
+    border-bottom: 2px solid #3b82f6;
+    border-radius: 2px;
+    cursor: pointer;
+    padding: 1px 0;
+  }
+  mark.hl-active {
+    outline: 2px solid #1a1a1a;
+    outline-offset: 1px;
+  }
+
+  /* ── SIDEBAR ── */
+  #sidebar {
+    width: 340px;
+    flex-shrink: 0;
+    background: #f9f9f7;
+    border-left: 1px solid #e8e8e4;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #sidebar-header {
+    padding: 16px 18px;
+    border-bottom: 1px solid #e8e8e4;
+    background: #f4f4f0;
+    flex-shrink: 0;
+  }
+  #sidebar-header h2 {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #666;
+  }
+  #sidebar-hint {
+    font-size: 12px;
+    color: #999;
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  .legend {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: #666;
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+  .legend-dot.comment { background: #f5a623; }
+  .legend-dot.revision { background: #ef4444; }
+  .legend-dot.question { background: #3b82f6; }
+
+  #annotations-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+  }
+  #annotations-list::-webkit-scrollbar { width: 4px; }
+  #annotations-list::-webkit-scrollbar-thumb { background: #d1d1d1; border-radius: 2px; }
+
+  #empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: #bbb;
+  }
+  #empty-state .empty-icon { font-size: 32px; margin-bottom: 10px; }
+  #empty-state p { font-size: 13px; color: #bbb; }
+
+  .annotation-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    border: 1px solid #e8e8e4;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .annotation-card:hover { border-color: #ccc; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .annotation-card.active { border-color: #1a1a1a; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+
+  .card-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .card-type.comment { background: #fff7e0; color: #b35a00; }
+  .card-type.revision { background: #fef2f2; color: #b91c1c; }
+  .card-type.question { background: #eff6ff; color: #1d4ed8; }
+
+  .card-quote {
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    background: #f9f9f7;
+    border-radius: 4px;
+    border-left: 3px solid #e0e0e0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+  }
+
+  .card-note {
+    font-size: 13px;
+    color: #333;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+
+  .card-meta {
+    font-size: 11px;
+    color: #aaa;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .card-delete {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #ccc;
+    font-size: 16px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    line-height: 1;
+  }
+  .card-delete:hover { color: #ef4444; background: #fef2f2; }
+
+  /* ── FLOATING TOOLBAR ── */
+  #selection-toolbar {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 6px 8px;
+    gap: 4px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    align-items: center;
+    transform: translateX(-50%);
+  }
+  #selection-toolbar::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #1a1a1a;
+  }
+  .toolbar-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .toolbar-btn:hover { transform: translateY(-1px); }
+  .toolbar-btn.comment { background: #f5a623; color: #fff; }
+  .toolbar-btn.revision { background: #ef4444; color: #fff; }
+  .toolbar-btn.question { background: #3b82f6; color: #fff; }
+  .toolbar-label { font-size: 11px; color: #888; padding: 0 4px; }
+
+  /* ── MODAL ── */
+  #modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+  #modal-overlay.visible { display: flex; }
+
+  #modal {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    width: 440px;
+    max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  #modal h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  #modal-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-bottom: 14px;
+  }
+
+  #modal-quote {
+    font-size: 13px;
+    color: #666;
+    font-style: italic;
+    padding: 8px 10px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    border-left: 3px solid #e0e0e0;
+    margin-bottom: 14px;
+    max-height: 80px;
+    overflow-y: auto;
+    line-height: 1.5;
+  }
+
+  #modal-note {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+    outline: none;
+    color: #1a1a1a;
+    transition: border-color 0.15s;
+  }
+  #modal-note:focus { border-color: #1a1a1a; }
+  #modal-note::placeholder { color: #bbb; }
+
+  #modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .modal-btn {
+    padding: 8px 18px;
+    border-radius: 7px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .modal-btn:hover { opacity: 0.85; }
+  .modal-btn-cancel { background: #f0f0f0; color: #555; }
+  .modal-btn-save { background: #1a1a1a; color: #fff; }
+
+  /* ── EXPORT MODAL ── */
+  #export-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 3000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+  #export-overlay.visible { display: flex; }
+  #export-modal {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    width: 600px;
+    max-width: 92vw;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  #export-modal h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  #export-modal p { font-size: 13px; color: #666; margin-bottom: 14px; }
+  #export-text {
+    flex: 1;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 13px;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    color: #333;
+    overflow-y: auto;
+    background: #f9f9f7;
+    white-space: pre-wrap;
+    line-height: 1.6;
+    min-height: 200px;
+    max-height: 400px;
+  }
+  #export-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    justify-content: flex-end;
+  }
+  .copy-feedback {
+    font-size: 12px;
+    color: #22c55e;
+    align-self: center;
+    margin-right: auto;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .copy-feedback.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div>
+    <div id="topbar-title-area">
+      <h1>AVD Paper V3 — Annotation Canvas</h1>
+      <div class="subtitle">Select any text to annotate → export your notes for Claude to review</div>
+    </div>
+  </div>
+  <div class="actions">
+    <span class="annotation-count" id="annotation-count">0 annotations</span>
+    <button class="btn btn-clear" onclick="clearAll()">Clear all</button>
+    <button class="btn btn-export" onclick="openExport()">&#x1F4CB; Export for Claude</button>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div id="layout">
+
+  <!-- DOCUMENT PANEL -->
+  <div id="doc-panel">
+    <div class="doc-content">
+
+      <div class="doc-title">BEYOND AGILE</div>
+      <div class="doc-subtitle">Accelerated Value Delivery — A Framework for the Age of AI</div>
+      <div class="doc-meta">CP &nbsp;•&nbsp; Draft v3.0 &nbsp;•&nbsp; June 2026</div>
+
+      <h2 class="section-heading">Abstract</h2>
+      <p>Agile methods were designed for a world where building software was slow, expensive, and divided across specialist silos. That world no longer exists. AI-powered development tools now allow a single product manager — with no prior development background — to design, build, and deploy working applications in a fraction of the time a traditional team would take.</p>
+      <p>This paper proposes Accelerated Value Delivery (AVD): a framework that compresses the build cycle aggressively while preserving the governance, quality controls, and accountability that enterprise software demands. AVD is stack-agnostic by design. It assumes the AI builds in whatever stack the approved toolchain supports, with the understanding that — in OutSystems-led organisations — output is converted into the platform via tooling under development, or generated directly in the platform when that capability lands.</p>
+
+      <h2 class="section-heading">1. The Problem with the Current Model</h2>
+      <p>Traditional software delivery — exemplified by platforms like OutSystems — follows a long, sequential lifecycle. Discovery, design, sprint planning, development, QA, release, and post-production support each consume weeks. Specialists work in lanes: business analysts, architects, developers, designers, testers, product owners. Every handoff between lanes is a tax on time and clarity.</p>
+      <p>The metric that suffers most is Time to First Value. The customer waits months before seeing working software. By the time delivery arrives, the original problem has often shifted.</p>
+      <p>The question this paper asks is whether any of this still needs to take as long as it does.</p>
+
+      <h2 class="section-heading">2. The AI Inflection</h2>
+      <p>AI development tools have changed what a single person can accomplish. A PM with product knowledge and AI fluency can deliver a functional MVP in a fraction of the time previously required. This breaks the core assumption that underpinned agile — that building software requires a team of specialists working in coordinated sprints over extended periods.</p>
+      <p>AI does not only accelerate coding. It accelerates architecture review, UX generation, documentation, testing, security scanning, and compliance reporting. The bottleneck is no longer technical capacity. It is decision-making, governance, and process design.</p>
+      <p>AVD is the framework that takes this shift seriously.</p>
+
+      <h2 class="section-heading">3. Stack-Agnostic by Design</h2>
+      <p>The build mechanics described in this paper are deliberately stack-agnostic. The AI generates working software in whatever stack the approved toolchain supports. The governance, gating, and continuous-evolution mechanisms apply equally regardless of the underlying technology.</p>
+      <p>In OutSystems-led organisations, the assumption is one of two paths: either the AI-generated build is converted into OutSystems modules through tooling currently being developed by the R&amp;D team; or, once the platform supports it natively, the build is generated directly in OutSystems. The framework's logic does not depend on which path applies.</p>
+
+      <h2 class="section-heading">4. Framework Overview</h2>
+      <p>AVD has three phases connected by one continuous artefact — the Living Backlog. Phase 1 is PM-led inception and accelerated build. Phase 2 is a compressed technical gate. After Phase 2, the application is deployed and enters the organisation's standard support and operations cycle. The PM has no further role in run. Phase 3 is the continuous evolution model, powered by stakeholder sandboxes.</p>
+      <p>This phase boundary matters: AVD accelerates the build, not the run. Operations, SRE, incident response, and tiered support are unchanged. AVD does not attempt to redefine them.</p>
+
+      <h2 class="section-heading">5. Phase 1 — Inception &amp; Accelerated Build</h2>
+      <p>Phase 1 begins with discovery and ends with a working build handed to Phase 2. Discovery is not a precursor that happens elsewhere — it is the first activity of Phase 1, and the Vision Brief it produces is the signal that the build can start.</p>
+
+      <h3 class="sub-heading">Context Check</h3>
+      <p>Before discovery proper, a short context check determines the right build path. There are three paths:</p>
+      <table class="doc-table">
+        <thead><tr><th>Path</th><th>Scenario</th><th>Architecture Treatment</th></tr></thead>
+        <tbody>
+          <tr><td>Existing App</td><td>Building on or extending a live application</td><td>Architecture review is mandatory before build starts. PM flags decisions for Phase 2; does not make them.</td></tr>
+          <tr><td>Greenfield with Context</td><td>No existing app, but the customer has real requirements</td><td>Minimal architecture sketch (hosting model, auth approach, data model shape) before build. Kept deliberately small.</td></tr>
+          <tr><td>Vanilla Greenfield</td><td>No app, no constraints</td><td>Build immediately. Architecture is formalised in Phase 2.</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="sub-heading">Discovery and the Vision Brief</h3>
+      <p>The PM meets directly with the business owner — not a business analyst, not a proxy. The conversation is recorded. AI processes the recording and extracts candidate backlog items, which the PO reviews and approves. This seeds the Living Backlog.</p>
+      <p>The conversation produces a single artefact: the Vision Brief. One page. It captures the problem, the business goals, the success metrics, and the scope boundary. The PO signs it before the build starts. This is the contract and the start of the audit trail.</p>
+
+      <h3 class="sub-heading">UX Grounding</h3>
+      <p>UX in Phase 1 is about constraints, not screens. If a design system exists, the PM uses it as a reference from the start. If the project is true greenfield, a UX specialist defines grounding rules — components, navigation patterns, accessibility standards — in a single short session. The AI then builds within those rules. Detailed flow review is a Phase 2 activity.</p>
+
+      <h3 class="sub-heading">The Build</h3>
+      <p>The PM builds using the approved AI toolchain. No user stories are written; no wireframes are handed to designers. The PM uses AI-assisted QA tools continuously throughout the build. Scope is kept honest by the Vision Brief, which the AI references when flagging directions that drift from the agreed objectives.</p>
+      <p>Acceptance criteria are not lost. They are anchored in the Vision Brief at the outcome level and refined per feature inside each commit summary (see below). For future maintainers, AI regenerates technical documentation from the current code on demand, so the build remains comprehensible after the PM moves on.</p>
+
+      <h3 class="sub-heading">Sign-off and Audit Trail</h3>
+      <p>When the PM considers a feature complete, they trigger a commit summary. The system generates the summary automatically — what was built, the Living Backlog item it satisfies, the tests that passed. The PO reviews and approves, with a timestamped record. This mechanism is the audit trail. It is defined here and referenced — not redefined — elsewhere in this paper.</p>
+
+      <h3 class="sub-heading">Quality</h3>
+      <p>AI-assisted QA runs throughout the build. A human QA specialist performs a focused spot review before handoff to Phase 2. This combination catches defects earlier than a traditional post-sprint cycle without requiring a full-time QA presence during the build.</p>
+
+      <h3 class="sub-heading">Minimum Team</h3>
+      <table class="doc-table">
+        <thead><tr><th>Role</th><th>Presence</th><th>Responsibility</th></tr></thead>
+        <tbody>
+          <tr><td>PM (AI-First)</td><td>Full-time during build</td><td>Primary builder. Owns the build, triggers commit summaries, manages scope against the Vision Brief.</td></tr>
+          <tr><td>Product Owner</td><td>Daily review</td><td>Signs Vision Brief. Reviews commit summaries. Final decision authority on scope and acceptance.</td></tr>
+          <tr><td>Technical Companion</td><td>On-call (existing-app path only)</td><td>Available to answer architecture questions. Does not build.</td></tr>
+          <tr><td>QA Specialist</td><td>Focused spot review before Phase 2 handoff</td><td>Independent human pass to complement AI-assisted QA run throughout the build.</td></tr>
+          <tr><td>AVD Coach</td><td>First project only</td><td>Owned by a central enablement function. Lightweight involvement on subsequent projects, not absorbed by the PO.</td></tr>
+        </tbody>
+      </table>
+      <p><em>Output of Phase 1: a working application, a signed Vision Brief, a seeded Living Backlog, and a timestamped commit-summary audit trail.</em></p>
+
+      <h2 class="section-heading">6. Phase 2 — Technical Gate &amp; Hardening</h2>
+      <p>The MVP passes through a formal technical gate before going to production. This is non-negotiable for enterprise software. The gate is radically compressed using AI and runs as parallel tracks, all coordinated by the PM.</p>
+
+      <h3 class="sub-heading">Parallel Tracks</h3>
+      <table class="doc-table">
+        <thead><tr><th>Track</th><th>Owner</th><th>Activity</th></tr></thead>
+        <tbody>
+          <tr><td>Security Scanning</td><td>Automated (triggered on handoff)</td><td>Vulnerabilities, suspicious API calls, data-handling issues.</td></tr>
+          <tr><td>Architecture Review</td><td>Senior Architect (by exception)</td><td>Validates against the pattern library. By default, conforming builds pass automatically; only non-conforming or novel patterns require architect time.</td></tr>
+          <tr><td>Compliance Documentation</td><td>AI-generated</td><td>Security reports and compliance documentation produced automatically from the build.</td></tr>
+          <tr><td>UX Flow Review</td><td>UX Specialist</td><td>Evaluates flows, interactions, usability. Parallel track — findings go to the Living Backlog unless they are deployment blockers.</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="sub-heading">Architect Capacity — Review by Exception</h3>
+      <p>Architects are scarce and expensive. AVD does not assume an architect reviews every project in detail. The default is automated validation against the pattern library: builds that conform pass without architect time. Architects engage only on novel patterns, non-conforming structures, or genuinely new territory. This is what makes Phase 2 sustainable at portfolio scale.</p>
+
+      <h3 class="sub-heading">Pattern Library and the First-Project Reality</h3>
+      <p>The pattern library is owned by the Architecture Review Board and grows incrementally with each project. On the first AVD project, the library is effectively empty: there is no fast lane, and the architect uses standing architecture principles to review the build. The output of that project seeds the library. This first-project cost is real, and it is honest to name it. From the second project onwards, the fast lane begins to do work.</p>
+
+      <h3 class="sub-heading">Tiered Blocker Model</h3>
+      <table class="doc-table">
+        <thead><tr><th>Type</th><th>Definition</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>Deployment Blocker</td><td>Security vulnerabilities, data exposure risks, critical compliance gaps</td><td>Build returns to the PM for resolution. Re-enters the gate when fixed. Not treated as a new project.</td></tr>
+          <tr><td>Non-Blocker</td><td>Usability improvements, minor technical debt, non-critical findings</td><td>Added to the Living Backlog with a remediation item. Does not delay deployment.</td></tr>
+        </tbody>
+      </table>
+      <p>Only true blockers extend the timeline. Everything else ships with a flagged remediation item. This preserves momentum while keeping the safety bar non-negotiable.</p>
+
+      <h3 class="sub-heading">Deployment Authority</h3>
+      <p>AVD replaces the traditional change-advisory bottleneck with a model of pre-delegated deployment authority. The combined output of Phase 2 — passing security scans, architecture validation, and compliance documentation — is itself the deployment authority within a defined risk envelope. Out-of-envelope changes (new external integrations, regulated-data changes, new authentication surfaces) trigger an asynchronous standing-authority review rather than a scheduled meeting. Governance is preserved; the calendar wait is removed.</p>
+      <p><em>Output of Phase 2: production-ready application, deployable through the standard release path. Living Backlog updated with non-blocker findings.</em></p>
+
+      <h2 class="section-heading">7. Handoff to Run</h2>
+      <p>AVD ends at deployment. The PM is the builder, not the operator. Once the application is in production, it enters the organisation's standard support and operations cycle: SRE, incident response, tiered support, change management for routine maintenance. AVD does not redefine any of this.</p>
+      <p>This boundary protects two things at once. It prevents the PM from becoming a long-tail support owner, which would invalidate the model. And it ensures that the application is supported by people whose discipline is operations, not build.</p>
+      <p>Continuous evolution — Phase 3 — is a separate cycle that runs in parallel with run, not a replacement for it.</p>
+
+      <h2 class="section-heading">8. Phase 3 — Continuous Evolution via Stakeholder Sandboxing</h2>
+      <p>Once the product is live, the traditional PO bottleneck — all new requirements funnelled through one person writing user stories — is replaced by a decentralised, community-powered model. The Living Backlog and the sandbox model work together to drive continuous evolution while the application is supported under standard operations.</p>
+
+      <h3 class="sub-heading">Sandbox Provisioning</h3>
+      <ul class="doc-list">
+        <li>A certified stakeholder submits a lightweight request describing what they want to build and which feature area it touches.</li>
+        <li>IT provisions a sandbox using a standard template, within a committed SLA.</li>
+        <li>Sandbox cost is pre-approved at programme level. No per-sandbox budget approval.</li>
+        <li>Every sandbox is automatically provisioned with synthetic data (see below).</li>
+      </ul>
+
+      <h3 class="sub-heading">Synthetic Data</h3>
+      <p>No real production data may exist in any sandbox under any circumstances. Sandboxes run exclusively on synthetic data that mirrors the structure, volume, and behaviour of production without containing real personal information.</p>
+      <p>Building this synthetic data layer is a strategic, programme-level investment, not a per-project cost. For complex enterprise schemas, with foreign-key integrity, business rules, and edge cases, it is a multi-month engineering effort. Phase 3 cannot operate without it. Phases 1 and 2 can run in parallel with the layer being built, provided test data is handled with care.</p>
+
+      <h3 class="sub-heading">Building and Submitting Features</h3>
+      <p>Certified stakeholders build inside their isolated sandbox using AI tools. When ready, they submit the feature for community review. The PO defines the eligible voter group for each feature based on direct use or direct impact — not job title or seniority.</p>
+
+      <h3 class="sub-heading">Voting and PO Decision</h3>
+      <p>Votes are a prioritisation signal, not a mandate. The PO reviews highly voted features against business strategy, available resources, and the roadmap, and makes the final call. When a feature is rejected, the reasoning is published. Rejected ideas are archived in the Living Backlog with context — not deleted.</p>
+      <p>Approved features then move through the same Phase 2 gate that governed the original build. The same automated/exception model applies, so the gate scales with feature volume rather than collapsing under it.</p>
+
+      <h3 class="sub-heading">Automated Agents</h3>
+      <table class="doc-table">
+        <thead><tr><th>Agent</th><th>Function</th></tr></thead>
+        <tbody>
+          <tr><td>Duplicate Detector</td><td>Continuously scans active sandboxes, flags similar proposals, and suggests merges to prevent duplicate effort.</td></tr>
+          <tr><td>Strategy Monitor</td><td>When business objectives change, surfaces previously rejected ideas that are now relevant and flags them to the PO.</td></tr>
+          <tr><td>Auto-Archive</td><td>Archives inactive sandboxes according to the organisation's inactivity policy, keeping infrastructure costs manageable.</td></tr>
+        </tbody>
+      </table>
+      <p><em>Output: continuous, governed product evolution with full traceability and no lost ideas.</em></p>
+
+      <h2 class="section-heading">9. The Living Backlog</h2>
+      <p>The Living Backlog is the connective tissue of AVD. It is not a sprint backlog. It is a continuously maintained, AI-assisted record of every idea, request, and finding across all three phases, with full attribution and context. Nothing is ever lost. Every item has a timestamp, an originator, and the context it came from.</p>
+      <table class="doc-table">
+        <thead><tr><th>Source</th><th>How it enters</th></tr></thead>
+        <tbody>
+          <tr><td>Phase 1 Discovery</td><td>AI processes the recording and extracts candidates. PO reviews and approves.</td></tr>
+          <tr><td>Phase 2 Non-Blocker Findings</td><td>Technical, UX, and security findings that do not block deployment are added automatically with remediation context.</td></tr>
+          <tr><td>PO-Initiated Additions</td><td>The PO can add items at any time, with context and attribution.</td></tr>
+          <tr><td>Phase 3 Rejected Proposals</td><td>Features voted down or rejected by the PO are archived with the reason.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 class="section-heading">10. Governance Model</h2>
+      <p>AVD does not eliminate governance. It modernises it. Accountability is clearer, decision-making is faster, and the audit trail is built into the build process itself rather than maintained as a separate documentation layer.</p>
+      <table class="doc-table">
+        <thead><tr><th>Role</th><th>Traditional Model</th><th>AVD Model</th></tr></thead>
+        <tbody>
+          <tr><td>Product Owner</td><td>Backlog manager, story writer</td><td>Decision authority. Daily reviewer. Sign-off owner on commit summaries.</td></tr>
+          <tr><td>Business Analyst</td><td>Requirements intermediary</td><td>Eliminated. Replaced by direct PM-to-stakeholder conversation.</td></tr>
+          <tr><td>Architect / Tech Lead</td><td>Multi-week review</td><td>Compressed gate. Reviews by exception against the pattern library.</td></tr>
+          <tr><td>QA Tester</td><td>Post-sprint testing</td><td>AI-assisted QA continuous during build. Human spot review before Phase 2 handoff.</td></tr>
+          <tr><td>UX Designer</td><td>Upfront wireframing</td><td>Grounding rules in Phase 1 (greenfield only). Flow review in Phase 2.</td></tr>
+          <tr><td>PM / Engagement Manager</td><td>Coordinator, facilitator</td><td>Primary builder in Phase 1. Coordinator in Phase 2. Hands off at deployment.</td></tr>
+          <tr><td>AVD Coach</td><td>N/A</td><td>First project only. Owned by a central enablement function. Lightweight on subsequent projects.</td></tr>
+        </tbody>
+      </table>
+      <h4 class="sub-sub-heading">Decision Hierarchy</h4>
+      <ul class="doc-list">
+        <li>The PO has final authority over what reaches production.</li>
+        <li>For stakeholder conflicts, the PM provides an AI-generated impact analysis; the PO decides.</li>
+        <li>Senior leadership can override, but the reasoning is published. Every decision is visible and accountable.</li>
+      </ul>
+
+      <h2 class="section-heading">11. Failure Modes</h2>
+      <p>AVD is presented honestly only if it names the failure paths. The framework defines a clear response for each.</p>
+      <h4 class="sub-sub-heading">Phase 2 finds a deployment blocker</h4>
+      <p>The build returns to the PM. The same tools that produced it produce the fix. It re-enters the gate when ready. This is not a new project; it is a continuation of the same one.</p>
+      <h4 class="sub-sub-heading">PO rejects the MVP on completion</h4>
+      <p>The Vision Brief was wrong, or scope drifted. The project re-enters discovery. Because no large team was disbanded, the cost is small. This is one of AVD's structural advantages: the cost of a failed build is contained.</p>
+      <h4 class="sub-sub-heading">A sandbox feature fails community vote</h4>
+      <p>It is archived in the Living Backlog with the reason. The Strategy Monitor agent will resurface it if circumstances change.</p>
+      <h4 class="sub-sub-heading">Synthetic data missed a real-world bug</h4>
+      <p>The bug enters the standard production incident path. The defect becomes a new case for the synthetic data layer, which improves over time. This is expected and budgeted for, not a framework failure.</p>
+      <h4 class="sub-sub-heading">The PM is unavailable mid-build</h4>
+      <p>AVD requires a named backup PM with equivalent toolchain certification. The build state lives in the commit summaries, the Vision Brief, and the code itself — not in tribal knowledge.</p>
+
+      <h2 class="section-heading">12. First-Project Prerequisites</h2>
+      <p>These are one-time investments. They do not need to be repeated for subsequent projects.</p>
+      <table class="doc-table">
+        <thead><tr><th>Prerequisite</th><th>Owner</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>AI toolchain procured and IT-approved</td><td>IT / Procurement</td><td>Specific tools identified, security-reviewed, available to the PM.</td></tr>
+          <tr><td>PM certified on the approved toolchain</td><td>PM / L&amp;D</td><td>Demonstrated proficiency, not assumed.</td></tr>
+          <tr><td>Pattern library baseline</td><td>Architecture Review Board</td><td>Minimal viable set. Grows with each project. May be empty at project 1; that cost is accepted.</td></tr>
+          <tr><td>Deployment authority envelope agreed</td><td>PM / IT Governance</td><td>Defines what passes via Phase 2 gate vs. standing-authority review.</td></tr>
+          <tr><td>AVD Coach identified</td><td>Enablement Function</td><td>Central function. Not absorbed by the PO.</td></tr>
+          <tr><td>Sandbox infrastructure</td><td>IT</td><td>Standard template ready, with a committed provisioning SLA.</td></tr>
+          <tr><td>Synthetic data layer</td><td>IT / Data</td><td>Required for Phase 3. May be built in parallel with Phases 1 and 2.</td></tr>
+          <tr><td>Programme-level sandbox cost approved</td><td>Finance / IT</td><td>Pre-approved budget. No per-sandbox approval.</td></tr>
+          <tr><td>Named backup PM</td><td>Programme Lead</td><td>Equivalent toolchain certification. Mitigates single-point-of-failure risk.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 class="section-heading">13. Training and Certification</h2>
+      <p>Not every stakeholder will participate in the sandbox model. Self-selection is healthy — only motivated people will invest in the learning. All sandbox participants complete mandatory training before being granted access. This mirrors existing corporate certification models such as Power BI or Snowflake.</p>
+      <p>Training covers building features responsibly with AI tools, security awareness specific to sandbox environments, how the commit-summary and voting processes work, and the boundaries of what can be changed within a sandbox. Experienced participants also acknowledge the new way of working in writing.</p>
+
+      <h2 class="section-heading">14. Security Model</h2>
+      <p>The decentralised sandbox model only works with a layered security architecture. Six layers work together to ensure that openness does not compromise the production system.</p>
+      <table class="doc-table">
+        <thead><tr><th>Layer</th><th>Mechanism</th></tr></thead>
+        <tbody>
+          <tr><td>1. Isolation</td><td>Sandboxes are fully isolated from production data and infrastructure.</td></tr>
+          <tr><td>2. Synthetic Data</td><td>All sandboxes use synthetic data only. GDPR and HIPAA compliant by design.</td></tr>
+          <tr><td>3. Automated Scanning</td><td>All sandbox code is scanned for security vulnerabilities before community review.</td></tr>
+          <tr><td>4. Role-Based Permissions</td><td>Sensitive areas (authentication, payments, data exports) are restricted to privileged roles.</td></tr>
+          <tr><td>5. Architecture Gate</td><td>Any sandbox feature heading to production passes through the Phase 2 gate.</td></tr>
+          <tr><td>6. Audit Trails</td><td>Every change in every sandbox is logged with full who/what/when/why traceability.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 class="section-heading">15. Outcomes the Framework Targets</h2>
+      <p>AVD's claims are deliberately qualitative. Specific durations vary by stack, integration footprint, and organisational readiness. The relevant comparison is the direction and magnitude of change, not a calendar number that will be argued to death.</p>
+      <table class="doc-table">
+        <thead><tr><th>Outcome</th><th>Traditional (Agile)</th><th>AVD Target</th></tr></thead>
+        <tbody>
+          <tr><td>Time to First Value</td><td>Measured in months</td><td>Aggressively compressed; measured in a fraction of the traditional cycle.</td></tr>
+          <tr><td>Defect escape rate</td><td>Discovered post-sprint</td><td>Low and continuously validated, via AI-assisted QA and automated scanning.</td></tr>
+          <tr><td>PO sign-off cadence</td><td>End of sprint</td><td>Per feature, on commit summary.</td></tr>
+          <tr><td>Idea-to-production for a new feature</td><td>Weeks</td><td>Substantially compressed via sandbox → vote → Phase 2 → deploy.</td></tr>
+          <tr><td>Stakeholder engagement model</td><td>PO-mediated</td><td>Direct, with governance.</td></tr>
+          <tr><td>Audit trail completeness</td><td>Documentation-dependent</td><td>Built into the build process via commit summaries.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 class="section-heading">16. Empirical Basis and Pilot Path</h2>
+      <p>The framework is informed by recent practical experience: in a short window, the author built and deployed several functional applications using AI tooling, with no prior development background. These applications demonstrated that the build mechanics described in Phase 1 are achievable in practice.</p>
+      <p>That experience is, deliberately and honestly, not enterprise validation. The applications were small in scope, lightly integrated, and not exposed to the full weight of regulated production. Their value is to demonstrate feasibility of the build model, not to substitute for an enterprise pilot.</p>
+      <p>The next step is a real pilot, scoped against an actual OutSystems engagement, with all of the prerequisites in section 12 in place. The pilot is where AVD's claims about quality, safety, and acceleration are tested under enterprise conditions.</p>
+
+      <h2 class="section-heading">17. A Note on Commercial Contracting</h2>
+      <p>Customer engagements written in sprint-based Agile vocabulary do not map cleanly to AVD. Milestone billing tied to sprint outputs is the wrong instrument for a build that compresses radically. The shift this implies — from sprint-deliverable contracts to outcome-based contracting — is already being explored at OutSystems. It is mentioned here only to acknowledge the dependency; the contracting model is out of scope for this paper.</p>
+
+      <h2 class="section-heading">18. Closing</h2>
+      <p>Agile served the industry well for three decades. Its values — speed, customer collaboration, working software over documentation, responding to change — are preserved and amplified by AVD. What is discarded is the bureaucratic scaffolding that slowed agile down once its founding assumptions were no longer true.</p>
+      <p>AVD is a framework in which a PM with AI tools is the primary builder, the product owner is a decision authority rather than a story writer, quality is continuous rather than sequential, and the community drives evolution after launch rather than a single gatekeeper. The Living Backlog ensures nothing is lost. The tiered blocker model ensures nothing unsafe ships. The commit-summary audit trail ensures everything is traceable. The handoff to run ensures the PM is not a long-tail operator.</p>
+      <p>It is not a framework built for the world agile was designed for. It is a framework built for the world that already exists.</p>
+      <p><em>— CP, June 2026</em></p>
+
+      <h2 class="section-heading">Annex A — Comparison with Existing Frameworks</h2>
+      <p>BMAD preserves the structure of Agile (stories, sprints, documents) and automates the generation of each role's output with AI. AVD is more radical: it eliminates stories as an intermediate layer and treats the request itself as the source of truth.</p>
+      <p>SAFe scales Agile up; AVD compresses it down. The two are not directly comparable, but the contrast clarifies AVD's position.</p>
+      <p>Shape Up replaces sprints with six-week cycles and betting tables. AVD shares Shape Up's rejection of fixed sprint cadence, but is built around AI-led build rather than small autonomous teams.</p>
+      <table class="doc-table">
+        <thead><tr><th>Dimension</th><th>Agile / SAFe</th><th>BMAD</th><th>AVD</th></tr></thead>
+        <tbody>
+          <tr><td>Unit of work</td><td>User story</td><td>Story produced by AI agent</td><td>Direct request, captured in discovery</td></tr>
+          <tr><td>Time to First Value</td><td>Months</td><td>Compressed but sprint-structured</td><td>Aggressively compressed; deployment-ready in a fraction of the traditional cycle</td></tr>
+          <tr><td>Who builds</td><td>Development team</td><td>AI agents per role</td><td>PM with AI + embedded QA</td></tr>
+          <tr><td>Traceability</td><td>Story → task → code</td><td>PRD → agent output → code</td><td>Request → commit summary → code</td></tr>
+          <tr><td>Sprint structure</td><td>Required</td><td>Preserved</td><td>Eliminated</td></tr>
+          <tr><td>Continuous evolution model</td><td>PO-mediated</td><td>PO-mediated</td><td>Community sandboxes + Phase 2 gate</td></tr>
+        </tbody>
+      </table>
+      <p>Alternatives to Jira (DevRev, BridgeApp, Linear, Plane) are all still centred on tasks and tickets. None implements the "request as source of truth" model that AVD proposes. This is the white space in the market that AVD occupies.</p>
+
+      <h2 class="section-heading">Annex B — Glossary of Roles and Artefacts</h2>
+      <table class="doc-table">
+        <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+        <tbody>
+          <tr><td>Vision Brief</td><td>One-page artefact produced from the Phase 1 discovery conversation. Captures problem, goals, success metrics, scope boundary. Signed by the PO.</td></tr>
+          <tr><td>Commit Summary</td><td>Auto-generated record of a completed feature. Names what was built, the Living Backlog item it satisfies, and the tests that passed. Approved by the PO with timestamp.</td></tr>
+          <tr><td>Living Backlog</td><td>Continuously maintained record of ideas, requests, and findings across all three phases. Fed by discovery, Phase 2 non-blockers, PO additions, and Phase 3 rejected proposals.</td></tr>
+          <tr><td>Pattern Library</td><td>Architecture Review Board's catalogue of approved patterns. The basis for Phase 2 review by exception.</td></tr>
+          <tr><td>Deployment Authority Envelope</td><td>Pre-agreed boundary within which Phase 2 outputs alone authorise deployment. Out-of-envelope changes trigger standing-authority review.</td></tr>
+          <tr><td>Synthetic Data Layer</td><td>Production-shaped but personal-data-free dataset used in all sandboxes. Programme-level investment.</td></tr>
+          <tr><td>Sandbox</td><td>Isolated environment provisioned for a certified stakeholder to build a feature proposal. Uses synthetic data only.</td></tr>
+        </tbody>
+      </table>
+
+    </div>
+  </div><!-- /doc-panel -->
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <h2>Annotations</h2>
+      <div id="sidebar-hint">Select any text in the document to annotate it.</div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot comment"></div> Comment</div>
+        <div class="legend-item"><div class="legend-dot revision"></div> Needs revision</div>
+        <div class="legend-item"><div class="legend-dot question"></div> Question</div>
+      </div>
+    </div>
+    <div id="annotations-list">
+      <div id="empty-state">
+        <div class="empty-icon">&#x270F;&#xFE0F;</div>
+        <p>No annotations yet.<br>Select text and choose a type to start.</p>
+      </div>
+    </div>
+  </div><!-- /sidebar -->
+
+</div><!-- /layout -->
+
+<!-- FLOATING TOOLBAR -->
+<div id="selection-toolbar">
+  <span class="toolbar-label">Annotate as:</span>
+  <button class="toolbar-btn comment" onclick="openModal('comment')">&#x1F4AC; Comment</button>
+  <button class="toolbar-btn revision" onclick="openModal('revision')">&#x270F;&#xFE0F; Revision</button>
+  <button class="toolbar-btn question" onclick="openModal('question')">&#x2753; Question</button>
+</div>
+
+<!-- ANNOTATION MODAL -->
+<div id="modal-overlay">
+  <div id="modal">
+    <div id="modal-type-badge"></div>
+    <h3 id="modal-title">Add annotation</h3>
+    <div id="modal-quote"></div>
+    <textarea id="modal-note" placeholder="Your note... (press Cmd+Enter to save)"></textarea>
+    <div id="modal-actions">
+      <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-btn modal-btn-save" onclick="saveAnnotation()">Save annotation</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT MODAL -->
+<div id="export-overlay">
+  <div id="export-modal">
+    <h3>Export for Claude</h3>
+    <p>Copy this and paste it into your conversation with Claude to review your annotations.</p>
+    <div id="export-text"></div>
+    <div id="export-actions">
+      <span class="copy-feedback" id="copy-feedback">Copied to clipboard!</span>
+      <button class="modal-btn modal-btn-cancel" onclick="closeExport()">Close</button>
+      <button class="modal-btn modal-btn-save" onclick="copyExport()">Copy to clipboard</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let annotations = JSON.parse(localStorage.getItem('avd_v3_annotations') || '[]');
+let currentRange = null;
+let currentType = null;
+let nextId = annotations.length > 0 ? Math.max(...annotations.map(a => a.id)) + 1 : 1;
+let activeCardId = null;
+
+function save() {
+  localStorage.setItem('avd_v3_annotations', JSON.stringify(annotations));
+}
+
+window.addEventListener('load', () => {
+  renderAll();
+  reapplyHighlights();
+});
+
+const docPanel = document.getElementById('doc-panel');
+
+docPanel.addEventListener('mouseup', (e) => {
+  setTimeout(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.toString().trim()) { hideToolbar(); return; }
+    const range = sel.getRangeAt(0);
+    if (!docPanel.contains(range.commonAncestorContainer)) { hideToolbar(); return; }
+    currentRange = range.cloneRange();
+    const rect = range.getBoundingClientRect();
+    const toolbar = document.getElementById('selection-toolbar');
+    toolbar.style.display = 'flex';
+    toolbar.style.left = (rect.left + rect.width / 2) + 'px';
+    toolbar.style.top = (rect.top + window.scrollY - 54) + 'px';
+  }, 10);
+});
+
+document.addEventListener('mousedown', (e) => {
+  const toolbar = document.getElementById('selection-toolbar');
+  const modal = document.getElementById('modal-overlay');
+  if (!toolbar.contains(e.target) && modal.style.display === 'none') hideToolbar();
+});
+
+function hideToolbar() {
+  document.getElementById('selection-toolbar').style.display = 'none';
+}
+
+function openModal(type) {
+  currentType = type;
+  const sel = window.getSelection();
+  const selectedText = (sel && !sel.isCollapsed) ? sel.toString().trim() : (currentRange ? currentRange.toString().trim() : '');
+  const badge = document.getElementById('modal-type-badge');
+  const typeLabels = { comment: '&#x1F4AC; Comment', revision: '&#x270F;&#xFE0F; Needs Revision', question: '&#x2753; Question' };
+  badge.innerHTML = typeLabels[type];
+  badge.className = 'card-type ' + type;
+  document.getElementById('modal-quote').textContent = '"' + (selectedText.length > 200 ? selectedText.slice(0, 200) + '…' : selectedText) + '"';
+  document.getElementById('modal-note').value = '';
+  const overlay = document.getElementById('modal-overlay');
+  overlay.classList.add('visible');
+  overlay.style.display = 'flex';
+  setTimeout(() => document.getElementById('modal-note').focus(), 50);
+  hideToolbar();
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').style.display = 'none';
+  document.getElementById('modal-overlay').classList.remove('visible');
+  currentRange = null; currentType = null;
+  window.getSelection()?.removeAllRanges();
+}
+
+document.getElementById('modal-note').addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); saveAnnotation(); }
+  if (e.key === 'Escape') closeModal();
+});
+
+function saveAnnotation() {
+  const note = document.getElementById('modal-note').value.trim();
+  const selectedText = currentRange ? currentRange.toString().trim() : '';
+  if (!selectedText) { closeModal(); return; }
+  const id = nextId++;
+  const annotation = { id, type: currentType, text: selectedText, note, timestamp: new Date().toISOString(), highlightApplied: false };
+  if (currentRange) {
+    try {
+      const mark = document.createElement('mark');
+      mark.className = 'hl-' + currentType;
+      mark.dataset.annotationId = id;
+      mark.addEventListener('click', () => scrollToAnnotation(id));
+      currentRange.surroundContents(mark);
+      annotation.highlightApplied = true;
+    } catch(e) { annotation.highlightApplied = false; }
+  }
+  annotations.push(annotation);
+  save(); renderAll(); closeModal();
+  setTimeout(() => { const card = document.getElementById('card-' + id); if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 100);
+}
+
+function reapplyHighlights() {
+  annotations.forEach(ann => { if (ann.highlightApplied) return; highlightText(ann.text, ann.type, ann.id); });
+}
+
+function highlightText(searchText, type, id) {
+  if (!searchText || searchText.length < 5) return;
+  const walker = document.createTreeWalker(docPanel, NodeFilter.SHOW_TEXT);
+  let node;
+  while (node = walker.nextNode()) {
+    const idx = node.textContent.indexOf(searchText);
+    if (idx >= 0) {
+      try {
+        const range = document.createRange();
+        range.setStart(node, idx); range.setEnd(node, idx + searchText.length);
+        const mark = document.createElement('mark');
+        mark.className = 'hl-' + type;
+        mark.dataset.annotationId = id;
+        mark.addEventListener('click', () => scrollToAnnotation(id));
+        range.surroundContents(mark);
+        const ann = annotations.find(a => a.id === id);
+        if (ann) ann.highlightApplied = true;
+      } catch(e) {}
+      break;
+    }
+  }
+}
+
+function renderAll() {
+  const list = document.getElementById('annotations-list');
+  const empty = document.getElementById('empty-state');
+  const count = document.getElementById('annotation-count');
+  count.textContent = annotations.length + (annotations.length === 1 ? ' annotation' : ' annotations');
+  if (annotations.length === 0) { empty.style.display = 'block'; list.querySelectorAll('.annotation-card').forEach(c => c.remove()); return; }
+  empty.style.display = 'none';
+  list.querySelectorAll('.annotation-card').forEach(c => c.remove());
+  annotations.forEach(ann => { const card = createCard(ann); list.appendChild(card); });
+}
+
+function createCard(ann) {
+  const typeLabels = { comment: '&#x1F4AC; Comment', revision: '&#x270F;&#xFE0F; Revision', question: '&#x2753; Question' };
+  const time = new Date(ann.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const card = document.createElement('div');
+  card.className = 'annotation-card' + (ann.id === activeCardId ? ' active' : '');
+  card.id = 'card-' + ann.id;
+  card.innerHTML = '<div class="card-type ' + ann.type + '">' + typeLabels[ann.type] + '</div><div class="card-quote">' + escHtml(ann.text) + '</div>' + (ann.note ? '<div class="card-note">' + escHtml(ann.note) + '</div>' : '') + '<div class="card-meta"><span>' + time + '</span><button class="card-delete" onclick="deleteAnnotation(' + ann.id + ', event)" title="Delete">×</button></div>';
+  card.addEventListener('click', () => scrollToHighlight(ann.id));
+  return card;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function scrollToAnnotation(id) {
+  activeCardId = id; renderAll();
+  const card = document.getElementById('card-' + id);
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function scrollToHighlight(id) {
+  activeCardId = id; renderAll();
+  document.querySelectorAll('mark[data-annotation-id]').forEach(m => m.classList.remove('hl-active'));
+  const mark = document.querySelector('mark[data-annotation-id="' + id + '"]');
+  if (mark) { mark.classList.add('hl-active'); mark.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => mark.classList.remove('hl-active'), 2000); }
+}
+
+function deleteAnnotation(id, e) {
+  e.stopPropagation();
+  if (!confirm('Delete this annotation?')) return;
+  const mark = document.querySelector('mark[data-annotation-id="' + id + '"]');
+  if (mark) { const parent = mark.parentNode; while (mark.firstChild) parent.insertBefore(mark.firstChild, mark); parent.removeChild(mark); }
+  annotations = annotations.filter(a => a.id !== id);
+  if (activeCardId === id) activeCardId = null;
+  save(); renderAll();
+}
+
+function clearAll() {
+  if (annotations.length === 0) return;
+  if (!confirm('Delete all ' + annotations.length + ' annotations?')) return;
+  document.querySelectorAll('mark[data-annotation-id]').forEach(mark => { const parent = mark.parentNode; while (mark.firstChild) parent.insertBefore(mark.firstChild, mark); parent.removeChild(mark); });
+  annotations = []; activeCardId = null; save(); renderAll();
+}
+
+function openExport() {
+  if (annotations.length === 0) { alert('No annotations to export yet.'); return; }
+  const typeLabels = { comment: 'COMMENT', revision: 'REVISION NEEDED', question: 'QUESTION' };
+  let text = 'AVD PAPER V3 — ANNOTATION REVIEW\n';
+  text += 'Exported: ' + new Date().toLocaleString() + '\n';
+  text += 'Total annotations: ' + annotations.length + '\n';
+  text += '─'.repeat(60) + '\n\n';
+  annotations.forEach((ann, i) => {
+    text += '[' + (i+1) + '] ' + typeLabels[ann.type] + '\n';
+    text += 'Quoted text: "' + ann.text.slice(0,300) + (ann.text.length > 300 ? '…' : '') + '"\n';
+    if (ann.note) text += 'Note: ' + ann.note + '\n';
+    text += '\n';
+  });
+  text += '─'.repeat(60) + '\n';
+  text += 'Please review these annotations and respond to each one.';
+  document.getElementById('export-text').textContent = text;
+  document.getElementById('export-overlay').style.display = 'flex';
+  document.getElementById('export-overlay').classList.add('visible');
+}
+
+function closeExport() { document.getElementById('export-overlay').style.display = 'none'; }
+
+function copyExport() {
+  const text = document.getElementById('export-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const fb = document.getElementById('copy-feedback');
+    fb.classList.add('show');
+    setTimeout(() => fb.classList.remove('show'), 2500);
+  });
+}
+
+document.getElementById('export-overlay').addEventListener('click', (e) => { if (e.target === document.getElementById('export-overlay')) closeExport(); });
+document.getElementById('modal-overlay').addEventListener('click', (e) => { if (e.target === document.getElementById('modal-overlay')) closeModal(); });
+</script>
+</body>
+</html>
